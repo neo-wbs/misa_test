@@ -222,6 +222,17 @@ docker compose up -d
 
 ## Schritt 5 — Pipeline anstoßen & beobachten
 
+Pipeline lokal testen ohne Push:
+```bash
+cd projekt
+python -m pytest tests/ -v
+python -m ruff check .
+
+docker compose up --build
+curl http://localhost:8001/health
+```
+
+Dann pushen:
 ```
 git add .
 git commit -m "feat: add CI/CD pipeline"
@@ -230,16 +241,6 @@ git push origin main
 GitHub → Actions Tab → auth-service CI/CD
 ├── Tests & Lint          (ca. 45s)
 └── Docker Build & Push   (ca. 90s)
-```
-
-Pipeline lokal testen ohne Push:
-```bash
-cd auth_service
-pytest tests/ -v
-ruff check .
-docker build -t auth_service:local .
-docker run --rm -p 8001:8001 -e JWT_SECRET_KEY=test auth_service:local &
-curl http://localhost:8001/health
 ```
 
 ---

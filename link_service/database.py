@@ -1,8 +1,7 @@
-# link_service/database.py
+from datetime import datetime
+
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import DeclarativeBase, Session
-from datetime import datetime
-import json
 
 engine = create_engine("sqlite:///./links.db", connect_args={"check_same_thread": False})
 

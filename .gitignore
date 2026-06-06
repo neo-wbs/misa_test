@@ -1,2 +1,22 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
 .env
+
+# Datenbank
 *.db
+*.db-journal    # SQLite-Temp-Dateien
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode
+.idea
+
+# Tests
+.pytest_cache
+htmlcov
+.coverage
