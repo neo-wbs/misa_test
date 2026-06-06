@@ -70,11 +70,13 @@ Zu Package Struktur: `...\trainer_my_courses\kurs_Python\vorbereitung\komplett_k
 # Dockerfiles anpassen:
 # auth_service
 COPY shared ./shared
+COPY tests ./tests
 COPY . .
 CMD ["uvicorn", "auth_service.main:app", "--host", "0.0.0.0", "--port", "8001"]
 
 # link_service
 COPY shared ./shared
+COPY tests ./tests
 COPY . .
 CMD ["uvicorn", "link_service.main:app", "--host", "0.0.0.0", "--port", "8002"]
 ```
