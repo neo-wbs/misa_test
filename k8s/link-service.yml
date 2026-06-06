@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: link_service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: link_service
+  template:
+    metadata:
+      labels:
+        app: link_service
+    spec:
+      containers:
+      - name: link_service
+        image: link_service:v1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8002
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:8001"   # Service-Name — gleich wie Compose!
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: link_service
+spec:
+  selector:
+    app: link_service
+  ports:
+  - port: 8002
+    targetPort: 8002

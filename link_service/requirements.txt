@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+httpx
+sqlalchemy
+python-jose[cryptography]
+prometheus-fastapi-instrumentator
+structlog

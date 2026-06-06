@@ -1,0 +1,69 @@
+services:
+
+  traefik:
+    image: traefik:v3.6.2
+    command:
+      - "--api.insecure=true"           # Dashboard aktivieren (nur lokal!)
+      - "--providers.docker=true"       # Docker als Konfigurationsquelle
+      - "--providers.docker.exposedbydefault=false"   # nur mit Label=true
+      - "--entrypoints.web.address=:80" # auf Port 80 lauschen
+    ports:
+      - "80:80"       # einziger Einstiegspunkt für Clients
+      - "8080:8080"   # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # Traefik liest Docker-Metadaten
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth_service/Dockerfile
+    env_file: .env          # lädt .env automatisch
+    # KEIN ports: — Traffic läuft nur über Traefik!
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-router.rule=PathPrefix(`/auth`)"
+      - "traefik.http.services.auth-svc.loadbalancer.server.port=8001"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - ./auth.db:/app/auth.db
+
+  link-service:
+    build:
+      context: .
+      dockerfile: link_service/Dockerfile
+    env_file: .env          # gleicher JWT_SECRET_KEY!
+    # KEIN ports: — sonst Konflikt beim Skalieren!
+    environment:
+      - PYTHONUNBUFFERED=1
+      - AUTH_SERVICE_URL=http://auth_service:8001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.link-router.rule=PathPrefix(`/links`)"
+      - "traefik.http.services.link-svc.loadbalancer.server.port=8002"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    volumes:
+      - ./links.db:/app/links.db
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin

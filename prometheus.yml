@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: auth_service
+    static_configs:
+      - targets: ["auth_service:8001"]
+    metrics_path: /auth/metrics
+
+  - job_name: link_service
+    static_configs:
+      - targets: ["link_service:8002"]
+    metrics_path: /links/metrics
