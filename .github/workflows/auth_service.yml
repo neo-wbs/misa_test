@@ -40,6 +40,7 @@ jobs:
         run: pytest auth_service/tests/ --cov=auth_service --cov-fail-under=80
         env:
           JWT_SECRET_KEY: test-secret-key-for-ci
+          PYTHONPATH: .
 
   build-and-push:
     name: Docker Build & Push
