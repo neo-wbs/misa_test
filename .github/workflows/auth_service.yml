@@ -45,6 +45,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      packages: write   # GHCR braucht explizite Schreibrechte
 
     steps:
       - uses: actions/checkout@v4
