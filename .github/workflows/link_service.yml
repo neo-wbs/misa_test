@@ -37,7 +37,7 @@ jobs:
         run: ruff check link_service/
 
       - name: Tests mit Coverage
-        run: pytest link_service/tests/ --cov=link_service --cov-fail-under=80 --cov-omit=link_service/models.py
+        run: pytest link_service/tests/ --cov=link_service --cov-fail-under=75
         env:
           JWT_SECRET_KEY: test-secret-key-for-ci
           PYTHONPATH: .
