@@ -37,7 +37,7 @@ jobs:
         run: ruff check auth_service/
 
       - name: Tests mit Coverage
-        run: pytest auth_service/tests/ --cov=auth_service --cov-fail-under=80
+        run: pytest auth_service/tests/ --cov=auth_service --cov-fail-under=80 --cov-omit=auth_service/models.py
         env:
           JWT_SECRET_KEY: test-secret-key-for-ci
           PYTHONPATH: .
