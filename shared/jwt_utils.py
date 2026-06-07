@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 import os
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret")
 ALGORITHM  = "HS256"
 
 def create_access_token(user_id: int, role: str) -> str:

@@ -32,7 +32,7 @@ services:
       timeout: 3s
       retries: 5
     volumes:
-      - ./auth.db:/app/auth.db
+      - ./auth_service/auth.db:/app/auth_service/auth.db
 
   link-service:
     build:
@@ -51,7 +51,7 @@ services:
       auth-service:
         condition: service_healthy
     volumes:
-      - ./links.db:/app/links.db
+      - ./link_service/links.db:/app/link_service/links.db
 
   prometheus:
     image: prom/prometheus:v2.51.0

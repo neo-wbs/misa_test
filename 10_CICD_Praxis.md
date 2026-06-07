@@ -22,7 +22,7 @@ ruff
 ```
 
 ```python
-# projekt/tests/test_main.py
+# projekt/auth_service/tests/test_main.py
 from fastapi.testclient import TestClient
 from auth_service.main import app
 
@@ -55,7 +55,66 @@ def test_login_wrong_password():
     assert resp.status_code == 401
 ```
 
-Einige Änderungen, damit Tests keine Fehler werfen.
+```python
+# projekt/link_service/tests/test_main.py
+import os
+
+from fastapi.testclient import TestClient
+
+os.environ["JWT_SECRET_KEY"] = "dev-secret"
+from link_service.main import app
+from shared.jwt_utils import create_access_token
+
+client = TestClient(app)  # ← root_path entfernen
+token = create_access_token(user_id=1, role="user")
+headers = {"Authorization": f"Bearer {token}"}
+
+def test_health():
+    resp = client.get("/health")
+    assert resp.status_code == 200
+
+def test_save_link():
+    resp = client.post("/links", json={"url": "https://fastapi.tiangolo.com", "title": "FastAPI", "tags": ["python"]}, headers=headers)
+    assert resp.status_code == 201
+    assert resp.json()["url"] == "https://fastapi.tiangolo.com"
+
+def test_save_link_ohne_token():
+    resp = client.post("/links", json={"url": "https://example.com", "title": "Test"})
+    assert resp.status_code == 422
+
+def test_list_links():
+    client.post("/links", json={"url": "https://pytest.org", "title": "pytest"}, headers=headers)
+    resp = client.get("/links", headers=headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+def test_get_link_nicht_gefunden():
+    resp = client.get("/links/99999", headers=headers)
+    assert resp.status_code == 404
+
+def test_patch_link():
+    create = client.post("/links", json={"url": "https://docs.python.org", "title": "Alt"}, headers=headers)
+    link_id = create.json()["id"]
+    resp = client.patch(f"/links/{link_id}", json={"title": "Neu"}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Neu"
+
+def test_delete_link():
+    create = client.post("/links", json={"url": "https://loeschen.example.com", "title": "Löschen"}, headers=headers)
+    link_id = create.json()["id"]
+    resp = client.delete(f"/links/{link_id}", headers=headers)
+    assert resp.status_code == 204
+    assert client.get(f"/links/{link_id}", headers=headers).status_code == 404
+
+def test_link_history():
+    create = client.post("/links", json={"url": "https://history.example.com", "title": "History"}, headers=headers)
+    link_id = create.json()["id"]
+    resp = client.get(f"/links/{link_id}/history", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()[0]["type"] == "LinkGespeichert"
+```
+
+## Schritt 2: Einige Änderungen, damit Tests keine Fehler werfen
 Zu Package Struktur: `...\trainer_my_courses\kurs_Python\vorbereitung\komplett_kurs\grundlagen`
 
 ```bash
@@ -69,33 +128,54 @@ Zu Package Struktur: `...\trainer_my_courses\kurs_Python\vorbereitung\komplett_k
 
 # Dockerfiles anpassen:
 # auth_service
+COPY auth_service/requirements.txt .
+COPY auth_service/requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
 COPY shared ./shared
-COPY tests ./tests
 COPY . .
 CMD ["uvicorn", "auth_service.main:app", "--host", "0.0.0.0", "--port", "8001"]
 
 # link_service
+COPY link_service/requirements.txt .
+COPY link_service/requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
 COPY shared ./shared
-COPY tests ./tests
 COPY . .
 CMD ["uvicorn", "link_service.main:app", "--host", "0.0.0.0", "--port", "8002"]
+
+# In link_service/main.py:
+client = TestClient(app)  # ← root_path entfernen
+# dafür dann bei Aufruf nicht mehr
+# http://localhost/links/links, sondern: http://localhost/links
+curl -X POST http://localhost/links \
+   -H "Authorization: Bearer $TOKEN" \
+   -H "Content-Type: application/json" \
+   -d '{"url":"https://owasp.org","title":"OWASP","tags":["security"]}'
+   
+# Damit Tests und App dieselben *.db Dateien nutzen > in docker-compose.yml > bei volumes:
+# auth-service:
+- ./auth_service/auth.db:/app/auth_service/auth.db
+
+# link-service:
+- ./link_service/links.db:/app/link_service/links.db
 ```
 
 Tests lokal ausführen:
 ```bash
 cd auth_service
 pip install -r requirements-dev.txt
-cd .. # unterricht
-python -m pytest tests/ -v --cov=. --cov-report=term-missing
+python -m pytest  auth_service/tests/ -v --cov=. --cov-report=term-missing
 # Coverage-Report zeigt welche Zeilen nicht getestet sind
 ```
 
 ---
 
-## Schritt 2 — GitHub Actions Pipeline: auth-service
+## Schritt 3 — GitHub Actions Pipeline: auth-service
 
 Gleiche Datei für link_service — einfach auth_service durch link_service 
-ersetzen und Port/Pfad anpassen.
+ersetzen.
 
 ```yaml
 # .github/workflows/auth_service.yml
@@ -171,10 +251,10 @@ jobs:
 ## Schritt 3 — GitHub Secrets einrichten
 
 GITHUB_TOKEN ist automatisch verfügbar — du brauchst kein manuelles Secret für 
-GHCR (GitHub Container Registry). Einfach pushen und die Pipeline läuft.
+GHCR (GitHub Container Registry) anlegen. Einfach pushen und die Pipeline läuft.
 Es wird von GitHub automatisch für jeden Pipeline-Run generiert und ist nur 
-innerhalb der Pipeline als ${{ secrets.GITHUB_TOKEN }} verfügbar. Du musst es 
-nicht anlegen. Aber Personal Access Token muss generiert werden:
+innerhalb der Pipeline als ${{ secrets.GITHUB_TOKEN }} verfügbar. Aber 
+Personal Access Token muss generiert werden:
 - GitHub → rechts oben dein Profilbild → Settings
 - ganz unten links: Developer settings
 - Personal access tokens → Tokens (classic)
@@ -217,7 +297,6 @@ auth-service:
   image: ghcr.io/DEIN_GITHUB_USERNAME/auth-service:latest
 
 docker compose up -d
-
 ```
 
 ---
@@ -227,7 +306,8 @@ docker compose up -d
 Pipeline lokal testen ohne Push:
 ```bash
 cd projekt
-python -m pytest tests/ -v
+python -m pytest auth_service/tests/ -v
+python -m pytest link_service/tests/ -v
 python -m ruff check .
 
 docker compose up --build
@@ -257,12 +337,14 @@ projekt/
 │       └── link-service.yml    ← neu
 ├── auth-service/
     ├── __init__.py             ← neu
-    └── requirements-dev.txt    ← neu
+    ├── requirements-dev.txt    ← neu
+    └── tests/
+        └── test_main.py        ← neu
 ├── link-service/
     ├── __init__.py             ← neu
-    └── requirements-dev.txt    ← neu
-├── tests/
-│   ├── test_main.py            ← neu
+    ├── requirements-dev.txt    ← neu
+    └── tests/
+        └── test_main.py        ← neu
 └── shared/
     ├── jwt_utils.py            ← verschoben
     └── __init__.py             ← neu

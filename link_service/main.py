@@ -26,8 +26,13 @@ LINK_DURATION = Histogram(
     buckets=[0.01, 0.05, 0.1, 0.5, 1.0]
 )
 
-app = FastAPI(title="link-service", root_path="/links")
-# /metrics Endpoint automatisch einrichten
+app = FastAPI(title="link-service") # ← root_path entfernen
+# dafür dann bei Aufruf nicht mehr
+# http://localhost/links/links, sondern: http://localhost/links
+# curl -X POST http://localhost/links \
+#   -H "Authorization: Bearer $TOKEN" \
+#   -H "Content-Type: application/json" \
+#   -d '{"url":"https://owasp.org","title":"OWASP","tags":["security"]}'
 Instrumentator().instrument(app).expose(app)
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://localhost:8001")
 
