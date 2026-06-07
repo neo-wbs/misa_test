@@ -4,19 +4,20 @@ on:
   push:
     paths:
       - "auth_service/**"
+      - "shared/**"
       - ".github/workflows/auth_service.yml"
   pull_request:
     paths:
       - "auth_service/**"
+      - "shared/**"
 
 jobs:
 
   test:
     name: Tests & Lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: auth_service
+    # Kein working-directory — Tests laufen vom Projektroot,
+    # damit "from auth_service.main import app" funktioniert.
 
     steps:
       - uses: actions/checkout@v4
@@ -29,22 +30,22 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install -r auth_service/requirements.txt
+          pip install -r auth_service/requirements-dev.txt
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: ruff check auth_service/
 
       - name: Tests mit Coverage
-        run: pytest tests/ --cov=. --cov-fail-under=80
+        run: pytest auth_service/tests/ --cov=auth_service --cov-fail-under=80
         env:
           JWT_SECRET_KEY: test-secret-key-for-ci
 
   build-and-push:
     name: Docker Build & Push
-    needs: test                    # nur wenn Tests bestanden!
+    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'   # nur auf main-Branch
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +59,8 @@ jobs:
       - name: Docker Image bauen & pushen
         uses: docker/build-push-action@v5
         with:
-          context: ./auth_service
+          context: .                                        # Projektroot! (wegen shared/)
+          file: ./auth_service/Dockerfile
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
